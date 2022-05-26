@@ -37,8 +37,53 @@ import com.google.android.gms.location.GeofencingEvent
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        // TODO: Step 11 implement the onReceive method
+        //Check type of action that has been received
+        if (intent.action == ACTION_GEOFENCE_EVENT) {
+            //create new geofencing event and pass it the intent received
+            val geofencingEvent = GeofencingEvent.fromIntent(intent)
+            //Check for errors
+            if (geofencingEvent.hasError()) {
+                val errorMessage = errorMessage(context, geofencingEvent.errorCode)
+                Log.e(TAG, errorMessage)
+                return
+            }
+            //Check if transition type is ENTER
+            if (geofencingEvent.geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
+                Log.v(TAG, context.getString(R.string.geofence_entered))
+                //get the fenceID
+                val fenceId = when {
+                    //if the array is not empty set the fenceId to the first geofence's requestId
+                    geofencingEvent.triggeringGeofences.isNotEmpty() ->
+                        geofencingEvent.triggeringGeofences[0].requestId
+                    else -> {
+                        Log.e(TAG, "No Geofence Trigger Found! Abort mission!")
+                        return
+                    }
+                }
+                //Check that the geofence is consistent with the constants
+                // listed in GeofenceUtil.kt.
+                val foundIndex = GeofencingConstants.LANDMARK_DATA.indexOfFirst {
+                    it.id == fenceId
+                }
+
+                if ( -1 == foundIndex ) {
+                    Log.e(TAG, "Unknown Geofence: Abort Mission")
+                    return
+                }
+                //A valid geofence has been found at this point
+                //notify the user
+                val notificationManager = ContextCompat.getSystemService(
+                    context,
+                    NotificationManager::class.java
+                ) as NotificationManager
+
+                notificationManager.sendGeofenceEnteredNotification(
+                    context, foundIndex
+                )
+            }
+        }
     }
+
 }
 
 private const val TAG = "GeofenceReceiver"
